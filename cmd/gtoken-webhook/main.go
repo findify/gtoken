@@ -299,7 +299,23 @@ func getGtokenContainer(name, image, pullPolicy, volumeName, volumePath, tokenFi
 				corev1.ResourceMemory: resource.MustParse(limitsMemory),
 			},
 		},
+		SecurityContext: &corev1.SecurityContext{
+			AllowPrivilegeEscalation: pointer(false),
+			Capabilities: &corev1.Capabilities{
+				Drop: []corev1.Capability{"ALL"},
+			},
+			ReadOnlyRootFilesystem: pointer(true),
+			RunAsNonRoot:           pointer(true),
+			SeccompProfile: &corev1.SeccompProfile{
+				Type: corev1.SeccompProfileTypeRuntimeDefault,
+			},
+		},
 	}
+}
+
+// Helper function to create pointers for primitive types
+func pointer[T any](v T) *T {
+	return &v
 }
 
 func init() {

@@ -219,6 +219,17 @@ func Test_mutatingWebhook_mutatePod(t *testing.T) {
 									corev1.ResourceMemory: resource.MustParse(limitsMemory),
 								},
 							},
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: pointer(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+								ReadOnlyRootFilesystem: pointer(true),
+								RunAsNonRoot:           pointer(true),
+								SeccompProfile: &corev1.SeccompProfile{
+									Type: corev1.SeccompProfileTypeRuntimeDefault,
+								},
+							},
 							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "test-volume-name",
@@ -251,6 +262,17 @@ func Test_mutatingWebhook_mutatePod(t *testing.T) {
 								Limits: corev1.ResourceList{
 									corev1.ResourceCPU:    resource.MustParse(limitsCPU),
 									corev1.ResourceMemory: resource.MustParse(limitsMemory),
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: pointer(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+								ReadOnlyRootFilesystem: pointer(true),
+								RunAsNonRoot:           pointer(true),
+								SeccompProfile: &corev1.SeccompProfile{
+									Type: corev1.SeccompProfileTypeRuntimeDefault,
 								},
 							},
 							VolumeMounts: []corev1.VolumeMount{
