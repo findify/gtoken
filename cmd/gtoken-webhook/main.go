@@ -118,7 +118,13 @@ func serveMetrics(addr string) {
 
 	mux := http.NewServeMux()
 	mux.Handle("/metrics", promhttp.Handler())
-	err := http.ListenAndServe(addr, mux)
+
+	server := &http.Server{
+		Addr:              addr,
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           mux,
+	}
+	err := server.ListenAndServe()
 	if err != nil {
 		logger.WithError(err).Fatal("error serving telemetry")
 	}
@@ -392,12 +398,17 @@ func runWebhook(c *cli.Context) error {
 		mux.Handle("/metrics", promhttp.Handler())
 	}
 
+	server := &http.Server{
+		Addr:              listenAddress,
+		ReadHeaderTimeout: 10 * time.Second,
+		Handler:           mux,
+	}
 	if tlsCertFile == "" && tlsPrivateKeyFile == "" {
 		logger.Infof("listening on http://%s", listenAddress)
-		err = http.ListenAndServe(listenAddress, mux)
+		err = server.ListenAndServe()
 	} else {
 		logger.Infof("listening on https://%s", listenAddress)
-		err = http.ListenAndServeTLS(listenAddress, tlsCertFile, tlsPrivateKeyFile, mux)
+		err = server.ListenAndServeTLS(tlsCertFile, tlsPrivateKeyFile)
 	}
 
 	if err != nil {
