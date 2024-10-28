@@ -1,0 +1,116 @@
+version: 2.1
+
+orbs:
+  gcp-cli: circleci/gcp-cli@3.2.2
+
+parameters:
+  run-gtoken-workflow:
+    type: boolean
+    default: false
+  run-gtoken-webhook-workflow:
+    type: boolean
+    default: false
+
+executors:
+  build:
+    docker:
+      - image: cimg/gcp:2024.08
+
+commands:
+  build_image:
+    description: "Build the Docker image"
+    parameters:
+      folder:
+        type: string
+      repository:
+        type: string
+      file:
+        type: string
+    steps:
+      - gcp-cli/setup
+      - run:
+          name: Build Docker image
+          command: |
+            cd cmd/<< parameters.folder >>
+
+            gcloud auth configure-docker
+
+            TEMP_IMAGE_TAG="gcr.io/$GOOGLE_PROJECT_ID/<< parameters.repository >>:${CIRCLE_SHA1:0:7}"
+            echo "export TEMP_IMAGE_TAG=$TEMP_IMAGE_TAG" >> "$BASH_ENV"
+            docker build -t $TEMP_IMAGE_TAG -f << parameters.file >> . --label "io.findify.source-hash=${CIRCLE_SHA1:0:7}"
+
+  push_image:
+    description: "Push the Docker image"
+    parameters:
+      repository:
+        type: string
+    steps:
+      - gcp-cli/setup
+      - run:
+          name: Push Docker image
+          command: |
+            # Extract the version label
+            DOCKERFILE_VERSION=$(docker inspect $TEMP_IMAGE_TAG -f '{{ index .Config.Labels "io.findify.version" }}')
+            BUILD_TIMESTAMP=$(date "+%Y%m%d%H%M%S")
+
+            # Retag the image with the version label value
+            BUILD_IMAGE_TAG="gcr.io/$GOOGLE_PROJECT_ID/<< parameters.repository >>:$DOCKERFILE_VERSION.$BUILD_TIMESTAMP"
+            VERSION_IMAGE_TAG="gcr.io/$GOOGLE_PROJECT_ID/<< parameters.repository >>:$DOCKERFILE_VERSION"
+            docker tag $TEMP_IMAGE_TAG $BUILD_IMAGE_TAG
+            docker tag $TEMP_IMAGE_TAG $VERSION_IMAGE_TAG
+
+            gcloud auth configure-docker
+
+            # Push the Docker image
+            docker push $BUILD_IMAGE_TAG
+            docker push $VERSION_IMAGE_TAG
+
+            echo "Published $BUILD_IMAGE_TAG"
+            echo "Published $VERSION_IMAGE_TAG"
+
+jobs:
+  build_and_publish:
+    working_directory: ~/repo
+    executor: build
+    parameters:
+      folder:
+        type: string
+      repository:
+        type: string
+      file:
+        type: string
+        default: Dockerfile
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - build_image:
+          folder: << parameters.folder >>
+          repository: << parameters.repository >>
+          file: << parameters.file >>
+      - when:
+          condition:
+            equal: [<< pipeline.git.branch >>, "master"]
+          steps:
+            - push_image:
+                repository: << parameters.repository >>
+
+workflows:
+  gtoken:
+    when: << pipeline.parameters.run-gtoken-workflow >>
+    jobs:
+      - build_and_publish:
+          name: gtoken
+          folder: gtoken
+          repository: gtoken
+          context:
+            - backend
+  gtoken-webhook:
+    when: << pipeline.parameters.run-gtoken-webhook-workflow >>
+    jobs:
+      - build_and_publish:
+          name: gtoken-webhook
+          folder: gtoken-webhook
+          repository: gtoken-webhook
+          context:
+            - backend
