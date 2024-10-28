@@ -41,6 +41,8 @@ RUN apk --update add ca-certificates
 #
 FROM scratch
 
+LABEL io.findify.version="0.4.2"
+
 # copy CA certificates
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 

@@ -1,0 +1,16 @@
+version: 2.1
+
+setup: true
+
+orbs:
+  path-filtering: circleci/path-filtering@1.1.0
+
+workflows:
+  always-run:
+    jobs:
+      - path-filtering/filter:
+          base-revision: master
+          mapping: |
+            ^cmd/gtoken/.* run-gtoken-workflow true
+            ^cmd/gtoken-webhook/.* run-gtoken-webhook-workflow true
+          config-path: .circleci/workflows.yml
